@@ -54,12 +54,21 @@ impl<T: Connection> Server<T> {
     }
 
     fn handle_get_request(&self, request: &HttpRequest) -> Result<String, std::io::Error> {
-        let contents = load_html_file_from_uri(&request.line.uri[1..])?;
-        Ok(format!("{}\r\n{}", self.add_response(&200)?, contents))
+        match load_html_file_from_uri(&request.line.uri[1..]) {
+            Ok(contents) => Ok(format!("{}\r\n{}", self.add_response(&200)?, contents)),
+            Err(e) => Ok(self.handle_not_found()),
+        }
     }
 
     fn handle_not_implemented(&self) -> String {
         format!("{}\r\n", self.add_response(&501).unwrap())
+    }
+
+    fn handle_not_found(&self) -> String {
+        format!(
+            "{}\r\n404 - Page not found",
+            self.add_response(&404).unwrap()
+        )
     }
 
     pub fn request_handler(&self, request: &str) -> Result<String, std::io::Error> {
@@ -67,9 +76,7 @@ impl<T: Connection> Server<T> {
             Ok(http_request) => match http_request.line.method {
                 HttpMethod::Get => self.handle_get_request(&http_request),
             },
-            Err(e) => {
-                Ok(self.handle_not_implemented())
-            }
+            Err(e) => Ok(self.handle_not_implemented()),
         }
     }
 }
