@@ -26,6 +26,7 @@ impl<T: Connection> Server<T> {
         let mut http_status_codes: HashMap<u32, String> = HashMap::new();
         http_status_codes.insert(200, "OK".to_string());
         http_status_codes.insert(404, "Not Found".to_string());
+        http_status_codes.insert(501, "Not Implemented".to_string());
 
         Server {
             http_status_codes,
@@ -57,10 +58,18 @@ impl<T: Connection> Server<T> {
         Ok(format!("{}\r\n{}", self.add_response(&200)?, contents))
     }
 
+    fn handle_not_implemented(&self) -> String {
+        format!("{}\r\n", self.add_response(&501).unwrap())
+    }
+
     pub fn request_handler(&self, request: &str) -> Result<String, std::io::Error> {
-        let http_request = HttpRequest::from_str(request)?;
-        match http_request.line.method {
-            HttpMethod::Get => self.handle_get_request(&http_request),
+        match HttpRequest::from_str(request) {
+            Ok(http_request) => match http_request.line.method {
+                HttpMethod::Get => self.handle_get_request(&http_request),
+            },
+            Err(e) => {
+                Ok(self.handle_not_implemented())
+            }
         }
     }
 }
