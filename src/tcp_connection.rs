@@ -1,6 +1,7 @@
 use crate::server::Connection;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::time::Duration;
 use std::{io, thread};
 
 pub struct TcpServerConnection {
@@ -15,7 +16,7 @@ impl TcpServerConnection {
 }
 
 impl TcpServerConnection {
-    fn handle_incoming_connection<T: Fn(&str) -> Result<String, std::io::Error>>(
+    fn handle_incoming_connection<T: Fn(&str) -> Result<String, std::io::Error> + Send + Sync>(
         request_handler_callback: T,
         stream: &mut TcpStream,
     ) {
@@ -35,11 +36,16 @@ impl TcpServerConnection {
 }
 
 impl Connection for TcpServerConnection {
-    fn listen<T: Fn(&str) -> Result<String, std::io::Error>>(&self, request_handler_callback: T) {
+    fn listen<T: Copy + 'static + Fn(&str) -> Result<String, std::io::Error> + Send + Sync>(
+        &self,
+        request_handler_callback: T,
+    ) {
         for connection in self.listener.incoming() {
             match connection {
                 Ok(mut socket) => {
-                    Self::handle_incoming_connection(&request_handler_callback, &mut socket);
+                    thread::spawn(move || {
+                        Self::handle_incoming_connection(&request_handler_callback, &mut socket);
+                    });
                 }
                 Err(e) => println!("Error when getting client: {:?}", e),
             }
