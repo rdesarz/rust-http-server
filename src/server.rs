@@ -1,5 +1,6 @@
 use crate::http_request::{HttpMethod, HttpRequest};
 use http::StatusCode;
+use mime::Mime;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -43,11 +44,34 @@ impl<T: Connection> Server<T> {
         }
     }
 
+    fn find_mimetype(filename: &str) -> Mime {
+        let parts: Vec<&str> = filename.split('.').collect();
+
+        let res = match parts.last() {
+            Some(v) => match *v {
+                "html" => mime::TEXT_HTML,
+                "png" => mime::IMAGE_PNG,
+                "jpg" => mime::IMAGE_JPEG,
+                "json" => mime::APPLICATION_JSON,
+                &_ => mime::TEXT_PLAIN,
+            },
+            None => mime::TEXT_PLAIN,
+        };
+        return res;
+    }
+
     fn handle_get_request(request: &HttpRequest) -> Result<String, std::io::Error> {
+        let mime_type = Self::find_mimetype(&request.line.uri[1..]);
+        let content_type = format!(
+            "Content-Type: {}/{}\r\n",
+            mime_type.type_(),
+            mime_type.subtype()
+        );
         match load_html_file_from_uri(&request.line.uri[1..]) {
             Ok(contents) => Ok(format!(
-                "{}\r\n{}",
+                "{}{}\r\n{}",
                 Self::build_http_response(200).unwrap(),
+                content_type,
                 contents
             )),
             Err(e) => Ok(Self::build_not_found_response()),
