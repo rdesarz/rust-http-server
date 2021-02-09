@@ -15,15 +15,15 @@ impl TcpServerConnection {
 }
 
 impl TcpServerConnection {
-    fn handle_incoming_connection<T: Fn(&str) -> Result<String, std::io::Error> + Send + Sync>(
+    fn handle_incoming_connection<T: Fn(&[u8]) -> Result<Vec<u8>, std::io::Error> + Send + Sync>(
         request_handler_callback: T,
         stream: &mut TcpStream,
     ) {
         let mut input_buffer: [u8; 1024] = [0; 1024];
         stream.read(&mut input_buffer).unwrap();
-        match (request_handler_callback)(std::str::from_utf8(&input_buffer).unwrap()) {
+        match (request_handler_callback)(&input_buffer) {
             Ok(message) => {
-                if let Ok(_written_size) = stream.write(message.as_bytes()) {
+                if let Ok(_written_size) = stream.write(&message) {
                     stream.flush();
                 }
             }
@@ -35,7 +35,7 @@ impl TcpServerConnection {
 }
 
 impl Connection for TcpServerConnection {
-    fn listen<T: Copy + 'static + Fn(&str) -> Result<String, std::io::Error> + Send + Sync>(
+    fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Vec<u8>, std::io::Error> + Send + Sync>(
         &self,
         request_handler_callback: T,
     ) {
