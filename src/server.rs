@@ -89,11 +89,22 @@ impl<T: Connection> Server<T> {
     }
 
     fn build_not_found_response() -> Message {
-        format!(
-            "{}\r\n404 - Page not found",
-            Self::build_http_response(404).unwrap()
-        )
-        .into_bytes()
+        match load_content_from_uri("404.html") {
+            Ok(content) => {
+                let response = Self::build_http_response(404).unwrap();
+                let blank_line = "\r\n";
+                let mut message = Vec::new();
+                message.extend_from_slice(response.as_bytes());
+                message.extend_from_slice(blank_line.as_bytes());
+                message.extend_from_slice(&content);
+                message
+            }
+            Err(_e) => format!(
+                "{}\r\n404 - Page not found",
+                Self::build_http_response(404).unwrap()
+            )
+            .into_bytes(),
+        }
     }
 
     fn build_http_response(status_code: u16) -> Result<String, std::io::Error> {
