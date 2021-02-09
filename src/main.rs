@@ -1,7 +1,7 @@
 use http_server::server::Server;
 use http_server::tcp_connection::TcpServerConnection;
 use std::env;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::str::FromStr;
 
 fn main() {

@@ -1,7 +1,6 @@
 use crate::server::Connection;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::time::Duration;
 use std::{io, thread};
 
 pub struct TcpServerConnection {

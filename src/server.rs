@@ -1,7 +1,6 @@
 use crate::http_request::{HttpMethod, HttpRequest};
 use http::StatusCode;
 use mime::Mime;
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::str::FromStr;
@@ -20,9 +19,9 @@ where
     connection: T,
 }
 
-fn load_html_file_from_uri(uri: &str) -> Result<String, std::io::Error> {
+fn load_content_from_uri(uri: &str) -> Result<Vec<u8>, std::io::Error> {
     let path = Path::new(uri);
-    fs::read_to_string(path)
+    fs::read(path)
 }
 
 impl<T: Connection> Server<T> {
@@ -40,7 +39,7 @@ impl<T: Connection> Server<T> {
             Ok(http_request) => match http_request.line.method {
                 HttpMethod::Get => Self::handle_get_request(&http_request),
             },
-            Err(e) => Ok(Self::build_not_implemented_response()),
+            Err(_e) => Ok(Self::build_not_implemented_response()),
         }
     }
 
@@ -67,14 +66,14 @@ impl<T: Connection> Server<T> {
             mime_type.type_(),
             mime_type.subtype()
         );
-        match load_html_file_from_uri(&request.line.uri[1..]) {
+        match load_content_from_uri(&request.line.uri[1..]) {
             Ok(contents) => Ok(format!(
                 "{}{}\r\n{}",
                 Self::build_http_response(200).unwrap(),
                 content_type,
-                contents
+                String::from_utf8_lossy(&contents)
             )),
-            Err(e) => Ok(Self::build_not_found_response()),
+            Err(_e) => Ok(Self::build_not_found_response()),
         }
     }
 
@@ -83,6 +82,7 @@ impl<T: Connection> Server<T> {
     }
 
     fn build_not_found_response() -> String {
+        println!("Not found");
         format!(
             "{}\r\n404 - Page not found",
             Self::build_http_response(404).unwrap()
@@ -132,11 +132,20 @@ mod tests {
 
     #[test]
     fn pull_message() {
-        let mut test_connection = TestConnection::new();
-        test_connection.listen(|string| Ok(String::from("Test")));
+        let test_connection = TestConnection::new();
+        test_connection.listen(|_| Ok(String::from("Test")));
         assert_eq!(
             String::from("Test"),
             test_connection.push_message.borrow()[0]
         );
+    }
+
+    #[test]
+    fn test_load_non_existing_png_file() {
+        let uri = "non_existing.png";
+
+        let result = load_content_from_uri(&uri);
+
+        assert!(result.is_err());
     }
 }
