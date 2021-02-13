@@ -1,16 +1,21 @@
 use crate::server::Connection;
+use crate::thread_pool::ThreadPool;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::{io, thread};
 
 pub struct TcpServerConnection {
     pub listener: TcpListener,
+    pool: ThreadPool,
 }
 
 impl TcpServerConnection {
     pub fn new(socket: SocketAddr) -> io::Result<TcpServerConnection> {
         let listener = TcpListener::bind(socket)?;
-        Ok(TcpServerConnection { listener })
+        Ok(TcpServerConnection {
+            listener,
+            pool: ThreadPool::new(4),
+        })
     }
 }
 
@@ -42,7 +47,7 @@ impl Connection for TcpServerConnection {
         for connection in self.listener.incoming() {
             match connection {
                 Ok(mut socket) => {
-                    thread::spawn(move || {
+                    self.pool.execute(move || {
                         Self::handle_incoming_connection(&request_handler_callback, &mut socket);
                     });
                 }
