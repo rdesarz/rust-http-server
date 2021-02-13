@@ -39,7 +39,8 @@ fn find_mimetype(filename: &str) -> Mime {
         },
         None => mime::TEXT_PLAIN,
     };
-    return res;
+
+    res
 }
 
 fn build_content_type(mime: &Mime) -> String {
