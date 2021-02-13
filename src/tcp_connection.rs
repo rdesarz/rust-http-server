@@ -1,8 +1,8 @@
 use crate::server::Connection;
 use crate::thread_pool::ThreadPool;
+use std::io;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::{io, thread};
 
 pub struct TcpServerConnection {
     pub listener: TcpListener,

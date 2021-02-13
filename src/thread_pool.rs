@@ -1,6 +1,5 @@
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
-use std::thread::Thread;
 
 enum Message {
     NewJob(Job),
