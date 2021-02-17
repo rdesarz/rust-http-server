@@ -1,5 +1,5 @@
 # HTTP server implementation in Rust
-The purpose of this project was to develop a toy implementation of a HTTP server to learn Rust features. It is build around the tutorial written in [The Rust Book](https://doc.rust-lang.org/book/ch20-00-final-project-a-web-server.html). However, some additional features were developped (MIME type handler, etc). The server handles GET request, read html files as well as png or jpg. 
+The purpose of this project was to develop a toy implementation of a HTTP server to learn Rust features. It is partially inspired by the tutorial written in [The Rust Book](https://doc.rust-lang.org/book/ch20-00-final-project-a-web-server.html). However, some additional features were developped (MIME type handler, etc). The server handles GET request, reads html files as well as png or jpg. 
 
 
 ## Example
