@@ -1,14 +1,14 @@
 use crate::http_request::{HttpMethod, HttpRequest};
 use http::StatusCode;
 use mime::Mime;
-use std::fs;
 use std::path::Path;
 use std::str::FromStr;
+use std::{fmt, fs};
 
 type Message = Vec<u8>;
 
 pub trait Connection {
-    fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Message, std::io::Error> + Send + Sync>(
+    fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Message, ServerError> + Send + Sync>(
         &self,
         callback: T,
     );
@@ -26,10 +26,11 @@ fn load_content_from_uri(uri: &str) -> Result<Message, std::io::Error> {
     fs::read(path)
 }
 
+/// Returns a Mime type based on the filename. Returns text/plain by default.
 fn find_mimetype(filename: &str) -> Mime {
     let parts: Vec<&str> = filename.split('.').collect();
 
-    let res = match parts.last() {
+    let result = match parts.last() {
         Some(v) => match *v {
             "html" => mime::TEXT_HTML,
             "png" => mime::IMAGE_PNG,
@@ -40,11 +41,31 @@ fn find_mimetype(filename: &str) -> Mime {
         None => mime::TEXT_PLAIN,
     };
 
-    res
+    result
 }
 
+/// Returns a string of a standard content type line based on the Mime type.
 fn build_content_type(mime: &Mime) -> String {
     format!("Content-Type: {}/{}\r\n", mime.type_(), mime.subtype())
+}
+
+#[derive(Debug, Clone)]
+pub struct ServerError {
+    msg: String,
+}
+
+impl ServerError {
+    fn new(msg: &str) -> ServerError {
+        ServerError {
+            msg: String::from(msg),
+        }
+    }
+}
+
+impl fmt::Display for ServerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.msg)
+    }
 }
 
 impl<T: Connection> Server<T> {
@@ -52,25 +73,36 @@ impl<T: Connection> Server<T> {
         Server { connection }
     }
 
+    /// Start listening to incoming Http request
     pub fn run(&self) {
         self.connection
-            .listen(|message| Self::request_handler(message));
+            .listen(|request| Self::request_handler(request));
     }
 
-    pub fn request_handler(request: &[u8]) -> Result<Message, std::io::Error> {
-        match HttpRequest::from_str(std::str::from_utf8(request).unwrap()) {
-            Ok(http_request) => match http_request.line.method {
-                HttpMethod::Get => Self::handle_get_request(&http_request),
-            },
-            Err(_e) => Ok(Self::build_not_implemented_response()),
-        }
+    pub fn request_handler(request: &[u8]) -> Result<Message, ServerError> {
+        std::str::from_utf8(request)
+            .map_or_else(
+                |_| {
+                    Err(ServerError::new(
+                        "Unable to convert request to utf8 format. Request rejected",
+                    ))
+                },
+                |request| Ok(HttpRequest::from_str(request)),
+            )?
+            .map_or_else(
+                |_| Ok(Self::build_not_implemented_response()),
+                |http_request| match http_request.line.method {
+                    HttpMethod::Get => Self::handle_get_request(&http_request),
+                },
+            )
     }
 
-    fn handle_get_request(request: &HttpRequest) -> Result<Message, std::io::Error> {
+    fn handle_get_request(request: &HttpRequest) -> Result<Message, ServerError> {
         let mime = find_mimetype(&request.line.uri[1..]);
 
-        match load_content_from_uri(&request.line.uri[1..]) {
-            Ok(content) => {
+        load_content_from_uri(&request.line.uri[1..]).map_or_else(
+            |_| Ok(Self::build_not_found_response()),
+            |content| {
                 let response = Self::build_http_response(200).unwrap();
                 let content_type = build_content_type(&mime);
                 let blank_line = "\r\n";
@@ -80,9 +112,8 @@ impl<T: Connection> Server<T> {
                 message.extend_from_slice(blank_line.as_bytes());
                 message.extend_from_slice(&content);
                 Ok(message)
-            }
-            Err(_e) => Ok(Self::build_not_found_response()),
-        }
+            },
+        )
     }
 
     fn build_not_implemented_response() -> Message {
@@ -90,8 +121,15 @@ impl<T: Connection> Server<T> {
     }
 
     fn build_not_found_response() -> Message {
-        match load_content_from_uri("404.html") {
-            Ok(content) => {
+        load_content_from_uri("404.html").map_or_else(
+            |_| {
+                format!(
+                    "{}\r\n404 - Page not found",
+                    Self::build_http_response(404).unwrap()
+                )
+                .into_bytes()
+            },
+            |content| {
                 let response = Self::build_http_response(404).unwrap();
                 let blank_line = "\r\n";
                 let mut message = Vec::new();
@@ -99,21 +137,13 @@ impl<T: Connection> Server<T> {
                 message.extend_from_slice(blank_line.as_bytes());
                 message.extend_from_slice(&content);
                 message
-            }
-            Err(_e) => format!(
-                "{}\r\n404 - Page not found",
-                Self::build_http_response(404).unwrap()
-            )
-            .into_bytes(),
-        }
+            },
+        )
     }
 
-    fn build_http_response(status_code: u16) -> Result<String, std::io::Error> {
-        StatusCode::from_u16(status_code).map_or(
-            Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Unknown status code",
-            )),
+    fn build_http_response(status_code: u16) -> Result<String, ServerError> {
+        StatusCode::from_u16(status_code).map_or_else(
+            |_| Err(ServerError::new("Unknown status code")),
             |code| Ok(format!("HTTP/1.1 {} {}\r\n", status_code, code.as_str())),
         )
     }

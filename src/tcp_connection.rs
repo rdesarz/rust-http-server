@@ -1,4 +1,4 @@
-use crate::server::Connection;
+use crate::server::{Connection, ServerError};
 use crate::thread_pool::ThreadPool;
 use std::io;
 use std::io::{Read, Write};
@@ -20,7 +20,7 @@ impl TcpServerConnection {
 }
 
 impl TcpServerConnection {
-    fn handle_incoming_connection<T: Fn(&[u8]) -> Result<Vec<u8>, std::io::Error> + Send + Sync>(
+    fn handle_incoming_connection<T: Fn(&[u8]) -> Result<Vec<u8>, ServerError> + Send + Sync>(
         request_handler_callback: T,
         stream: &mut TcpStream,
     ) {
@@ -40,7 +40,7 @@ impl TcpServerConnection {
 }
 
 impl Connection for TcpServerConnection {
-    fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Vec<u8>, std::io::Error> + Send + Sync>(
+    fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Vec<u8>, ServerError> + Send + Sync>(
         &self,
         request_handler_callback: T,
     ) {
