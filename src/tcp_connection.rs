@@ -25,15 +25,18 @@ impl TcpServerConnection {
         stream: &mut TcpStream,
     ) {
         let mut input_buffer: [u8; 1024] = [0; 1024];
-        stream.read(&mut input_buffer).unwrap();
-        match (request_handler_callback)(&input_buffer) {
-            Ok(message) => {
-                if let Ok(_written_size) = stream.write(&message) {
-                    stream.flush();
+        match stream.read(&mut input_buffer) {
+            Ok(_) => {
+                match (request_handler_callback)(&input_buffer)
+                    .map(|message| stream.write(&message))
+                    .map(|_| stream.flush())
+                {
+                    Ok(_) => println!("Request was succesfully handled"),
+                    Err(e) => println!("{:?}", e),
                 }
             }
-            Err(e) => {
-                println!("Error when handling request: {:?}", e);
+            Err(error) => {
+                println!("{:?}", error);
             }
         }
     }
