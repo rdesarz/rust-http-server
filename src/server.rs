@@ -174,7 +174,7 @@ mod tests {
 
     impl Connection for TestConnection {
         fn listen<
-            T: 'static + Copy + Fn(&[u8]) -> Result<Message, std::io::Error> + Send + Sync,
+            T: 'static + Copy + Fn(&[u8]) -> Result<Message, ServerError> + Send + Sync,
         >(
             &self,
             callback: T,
@@ -190,7 +190,7 @@ mod tests {
         let test_connection = TestConnection::new();
         test_connection.listen(|_| Ok(String::from("Test").as_bytes().to_vec()));
         assert_eq!(
-            String::from("Test"),
+            String::from("Test").as_bytes().to_vec(),
             test_connection.push_message.borrow()[0]
         );
     }

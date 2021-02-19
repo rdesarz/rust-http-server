@@ -1,20 +1,37 @@
 use regex::Regex;
+use std::fmt;
 use std::str::FromStr;
+
+#[derive(Debug, Clone)]
+pub struct HttpRequestError {
+    msg: String,
+}
+
+impl HttpRequestError {
+    fn new(msg: &str) -> HttpRequestError {
+        HttpRequestError {
+            msg: String::from(msg),
+        }
+    }
+}
+
+impl fmt::Display for HttpRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
 
 pub enum HttpMethod {
     Get,
 }
 
 impl FromStr for HttpMethod {
-    type Err = std::io::Error;
+    type Err = HttpRequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "GET" => Ok(HttpMethod::Get),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Unknown http method",
-            )),
+            _ => Err(HttpRequestError::new("Unknown http method")),
         }
     }
 }
@@ -24,15 +41,12 @@ pub enum HttpVersion {
 }
 
 impl FromStr for HttpVersion {
-    type Err = std::io::Error;
+    type Err = HttpRequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "HTTP/1.1" => Ok(HttpVersion::V11),
-            _ => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Unknown http version",
-            )),
+            _ => Err(HttpRequestError::new("Unknown http version")),
         }
     }
 }
@@ -44,20 +58,25 @@ pub struct HttpRequestLine {
 }
 
 impl FromStr for HttpRequestLine {
-    type Err = std::io::Error;
+    type Err = HttpRequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let re = Regex::new(r#"([A-Z]*) (.*) (HTTP/[1-9.]*)"#).unwrap();
-        let caps = re.captures(s).unwrap();
+        let re = Regex::new(r#"([A-Z]*) (.*) (HTTP/[1-9.]*)"#)
+            .map_err(|_| HttpRequestError::new("Not able to parse input Http request"))?;
+
+        let caps = match re.captures(s) {
+            Some(caps) => caps,
+            None => {
+                return Err(HttpRequestError::new(
+                    "No captures found when parsing Http request",
+                ))
+            }
+        };
 
         let method = match caps.get(1) {
-            Some(match_method) => match HttpMethod::from_str(match_method.as_str()) {
-                Ok(method) => method,
-                Err(e) => return Err(e),
-            },
+            Some(match_method) => HttpMethod::from_str(match_method.as_str())?,
             None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(HttpRequestError::new(
                     "Http method not found in request line",
                 ))
             }
@@ -65,22 +84,13 @@ impl FromStr for HttpRequestLine {
 
         let uri = match caps.get(2) {
             Some(uri) => uri.as_str(),
-            None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    "Http uri not found in request line",
-                ))
-            }
+            None => return Err(HttpRequestError::new("Http uri not found in request line")),
         };
 
         let version = match caps.get(3) {
-            Some(match_method) => match HttpVersion::from_str(match_method.as_str()) {
-                Ok(method) => method,
-                Err(e) => return Err(e),
-            },
+            Some(match_method) => HttpVersion::from_str(match_method.as_str())?,
             None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Other,
+                return Err(HttpRequestError::new(
                     "Http version not found in request line",
                 ))
             }
@@ -94,30 +104,17 @@ impl FromStr for HttpRequestLine {
     }
 }
 
-// TODO: implement parsing of header and body
-pub struct HttpRequestHeader {}
-pub struct HttpRequestBody {}
-
 pub struct HttpRequest {
     pub line: HttpRequestLine,
-    pub header: Option<HttpRequestHeader>,
-    pub body: Option<HttpRequestBody>,
 }
 
 impl FromStr for HttpRequest {
-    type Err = std::io::Error;
+    type Err = HttpRequestError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let line = match HttpRequestLine::from_str(s) {
-            Ok(method) => method,
-            Err(e) => return Err(e),
-        };
+        let line = HttpRequestLine::from_str(s)?;
 
-        Ok(HttpRequest {
-            line,
-            header: None,
-            body: None,
-        })
+        Ok(HttpRequest { line })
     }
 }
 
