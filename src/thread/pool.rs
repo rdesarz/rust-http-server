@@ -60,11 +60,11 @@ impl ThreadPool {
     pub fn new(n_threads: usize) -> ThreadPool {
         assert!(n_threads > 0);
 
-        // Create a channel to send a job between the thread pool and their workers.
+        // Create a channel to send a job between the src pool and their workers.
         let (sender, receiver) = mpsc::channel();
 
         // Receiver is meant to be used by only one consumer at a time, therefore we have to use Arc
-        // pointer and Mutex to allow each thread to have pointer to the receiver
+        // pointer and Mutex to allow each src to have pointer to the receiver
         let receiver = Arc::new(Mutex::new(receiver));
 
         let mut workers = Vec::with_capacity(n_threads);

@@ -1,53 +1,10 @@
-use crate::http_request::{HttpMethod, HttpRequest};
+use crate::http::content_management::{
+    build_content_type, find_mimetype, load_content_from_uri, Message,
+};
+use crate::http::request::{HttpMethod, HttpRequest};
 use http::StatusCode;
-use mime::Mime;
-use std::path::Path;
+use std::fmt;
 use std::str::FromStr;
-use std::{fmt, fs};
-
-type Message = Vec<u8>;
-
-pub trait Connection {
-    fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Message, ServerError> + Send + Sync>(
-        &self,
-        callback: T,
-    );
-}
-
-pub struct Server<T>
-where
-    T: Connection,
-{
-    connection: T,
-}
-
-fn load_content_from_uri(uri: &str) -> Result<Message, std::io::Error> {
-    let path = Path::new(uri);
-    fs::read(path)
-}
-
-/// Returns a Mime type based on the filename. Returns text/plain by default.
-fn find_mimetype(filename: &str) -> Mime {
-    let parts: Vec<&str> = filename.split('.').collect();
-
-    let result = match parts.last() {
-        Some(v) => match *v {
-            "html" => mime::TEXT_HTML,
-            "png" => mime::IMAGE_PNG,
-            "jpg" => mime::IMAGE_JPEG,
-            "json" => mime::APPLICATION_JSON,
-            &_ => mime::TEXT_PLAIN,
-        },
-        None => mime::TEXT_PLAIN,
-    };
-
-    result
-}
-
-/// Returns a string of a standard content type line based on the Mime type.
-fn build_content_type(mime: &Mime) -> String {
-    format!("Content-Type: {}/{}\r\n", mime.type_(), mime.subtype())
-}
 
 #[derive(Debug, Clone)]
 pub struct ServerError {
@@ -66,6 +23,20 @@ impl fmt::Display for ServerError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.msg)
     }
+}
+
+pub trait Connection {
+    fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Vec<u8>, ServerError> + Send + Sync>(
+        &self,
+        callback: T,
+    );
+}
+
+pub struct Server<T>
+where
+    T: Connection,
+{
+    connection: T,
 }
 
 impl<T: Connection> Server<T> {
@@ -173,9 +144,7 @@ mod tests {
     }
 
     impl Connection for TestConnection {
-        fn listen<
-            T: 'static + Copy + Fn(&[u8]) -> Result<Message, ServerError> + Send + Sync,
-        >(
+        fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Message, ServerError> + Send + Sync>(
             &self,
             callback: T,
         ) {

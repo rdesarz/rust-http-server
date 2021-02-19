@@ -1,5 +1,5 @@
-use crate::server::{Connection, ServerError};
-use crate::thread_pool::ThreadPool;
+use crate::http::server::{Connection, ServerError};
+use crate::thread::pool::ThreadPool;
 use std::io;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};

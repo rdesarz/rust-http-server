@@ -1,5 +1,5 @@
-use http_server::server::Server;
-use http_server::tcp_connection::TcpServerConnection;
+use http_server::connection::tcp::TcpServerConnection;
+use http_server::http::server::Server;
 use std::env;
 use std::net::SocketAddr;
 use std::str::FromStr;
