@@ -4,12 +4,15 @@ use std::io;
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 
+/// TCP connection implementation to handle HTTP request
 pub struct TcpServerConnection {
-    pub listener: TcpListener,
+    listener: TcpListener,
     pool: ThreadPool,
 }
 
 impl TcpServerConnection {
+    /// Creates a new [`TcpServerConnection`]. Connection uses a thread pool with four threads.
+    /// Returns std::io::Error if connection was not able to connect to provided socket.
     pub fn new(socket: SocketAddr) -> io::Result<TcpServerConnection> {
         let listener = TcpListener::bind(socket)?;
         Ok(TcpServerConnection {
@@ -43,6 +46,7 @@ impl TcpServerConnection {
 }
 
 impl Connection for TcpServerConnection {
+    /// Loop over TCP connection and handle incoming requests using the provided callback.
     fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Vec<u8>, ServerError> + Send + Sync>(
         &self,
         request_handler_callback: T,
