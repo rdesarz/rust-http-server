@@ -2,12 +2,14 @@ use regex::Regex;
 use std::fmt;
 use std::str::FromStr;
 
+/// Error returned when HTTP request parsing fails
 #[derive(Debug, Clone)]
 pub struct HttpRequestError {
     msg: String,
 }
 
 impl HttpRequestError {
+    /// Creates a new [`HttpRequestError`]. An error message should be provided when building the error.
     fn new(msg: &str) -> HttpRequestError {
         HttpRequestError {
             msg: String::from(msg),
@@ -21,6 +23,7 @@ impl fmt::Display for HttpRequestError {
     }
 }
 
+/// HTTP method (GET, POST, ETC)
 pub enum HttpMethod {
     Get,
 }
@@ -28,6 +31,8 @@ pub enum HttpMethod {
 impl FromStr for HttpMethod {
     type Err = HttpRequestError;
 
+    /// Creates an [`HttpMethod`] from a string containing the corresponding method.
+    /// Returns [`HttpMethod`] if string corresponds to an implemented method, else returns HttpRequestError.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "GET" => Ok(HttpMethod::Get),
@@ -36,6 +41,7 @@ impl FromStr for HttpMethod {
     }
 }
 
+/// HTTP protocol version
 pub enum HttpVersion {
     V11,
 }
@@ -43,6 +49,8 @@ pub enum HttpVersion {
 impl FromStr for HttpVersion {
     type Err = HttpRequestError;
 
+    /// Creates an [`HttpVersion`] from a string containing the corresponding version.
+    /// Returns [`HttpVersion`] if string corresponds to an implemented method, else returns [`HttpRequestError`].
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "HTTP/1.1" => Ok(HttpVersion::V11),
@@ -51,6 +59,7 @@ impl FromStr for HttpVersion {
     }
 }
 
+/// Stores HTTP request line information
 pub struct HttpRequestLine {
     pub method: HttpMethod,
     pub uri: String,
@@ -60,6 +69,8 @@ pub struct HttpRequestLine {
 impl FromStr for HttpRequestLine {
     type Err = HttpRequestError;
 
+    /// Create an [`HttpRequestLine`] from a string containing the complete request line.
+    /// Returns [`HttpRequestLine`] if success, else return [`HttpRequestError`].
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let re = Regex::new(r#"([A-Z]*) (.*) (HTTP/[1-9.]*)"#)
             .map_err(|_| HttpRequestError::new("Not able to parse input Http request"))?;
@@ -104,6 +115,7 @@ impl FromStr for HttpRequestLine {
     }
 }
 
+/// Stores full HTTP request content
 pub struct HttpRequest {
     pub line: HttpRequestLine,
 }
@@ -111,6 +123,8 @@ pub struct HttpRequest {
 impl FromStr for HttpRequest {
     type Err = HttpRequestError;
 
+    /// Creates an [`HttpRequest`] from a string containing the complete HTTP request.
+    /// Returns [`HttpRequest`] if success, else returns [`HttpRequestError`].
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let line = HttpRequestLine::from_str(s)?;
 
