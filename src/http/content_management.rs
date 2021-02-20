@@ -33,3 +33,17 @@ pub fn find_mimetype(filename: &str) -> Mime {
 pub fn build_content_type(mime: &Mime) -> String {
     format!("Content-Type: {}/{}\r\n", mime.type_(), mime.subtype())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_non_existing_png_file() {
+        let uri = "non_existing.png";
+
+        let result = load_content_from_uri(&uri);
+
+        assert!(result.is_err());
+    }
+}

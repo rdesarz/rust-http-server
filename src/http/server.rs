@@ -14,7 +14,7 @@ pub struct ServerError {
 
 impl ServerError {
     /// Creates a new [`ServerError`]. An error message should be provided when building the error.
-    fn new(msg: &str) -> ServerError {
+    pub(crate) fn new(msg: &str) -> ServerError {
         ServerError {
             msg: String::from(msg),
         }
@@ -60,7 +60,7 @@ impl<T: Connection> Server<T> {
     ///
     /// // Initialize connection
     /// let tcp_server_connection = TcpServerConnection::new(
-    ///         SocketAddr::from_str(socket).expect("Specified socket does not exist"),
+    ///         SocketAddr::from_str("127.0.0.1:8080").expect("Specified socket does not exist"),
     ///     )
     ///     .expect("Unable to initialize connection. Server shutdown");
     ///
