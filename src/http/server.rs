@@ -6,12 +6,14 @@ use http::StatusCode;
 use std::fmt;
 use std::str::FromStr;
 
+/// Error returned when using server methods
 #[derive(Debug, Clone)]
 pub struct ServerError {
     msg: String,
 }
 
 impl ServerError {
+    /// Creates a new [`ServerError`]. An error message should be provided when building the error.
     fn new(msg: &str) -> ServerError {
         ServerError {
             msg: String::from(msg),
@@ -25,21 +27,46 @@ impl fmt::Display for ServerError {
     }
 }
 
+/// Trait for an HTTP connection used by the server to handle request
 pub trait Connection {
+    /// Starts to loop over the input connection and handle incoming data with provided callback.
+    /// # Arguments
+    /// `callback` accepts a vector of bytes and returns a vector of bytes containing the HTTP
+    ///     response. If failure occurs when handling request, should return ServerError.
     fn listen<T: 'static + Copy + Fn(&[u8]) -> Result<Vec<u8>, ServerError> + Send + Sync>(
         &self,
         callback: T,
     );
 }
 
+/// HTTP server implementation
 pub struct Server<T>
 where
     T: Connection,
 {
+    /// Connection used to handle request and provide response
     connection: T,
 }
 
 impl<T: Connection> Server<T> {
+    /// Return a new [`Server`] using the provided connection.
+    /// # Example
+    ///
+    /// ```
+    /// use http_server::connection::tcp::TcpServerConnection;
+    /// use std::net::SocketAddr;
+    /// use std::str::FromStr;
+    /// use http_server::http::server::Server;
+    ///
+    /// // Initialize connection
+    /// let tcp_server_connection = TcpServerConnection::new(
+    ///         SocketAddr::from_str(socket).expect("Specified socket does not exist"),
+    ///     )
+    ///     .expect("Unable to initialize connection. Server shutdown");
+    ///
+    /// // Create new server
+    /// let http_server = Server::new(tcp_server_connection);
+    /// ```
     pub fn new(connection: T) -> Server<T> {
         Server { connection }
     }
@@ -50,7 +77,8 @@ impl<T: Connection> Server<T> {
             .listen(|request| Self::request_handler(request));
     }
 
-    pub fn request_handler(request: &[u8]) -> Result<Message, ServerError> {
+    /// Handles HTTP request, used internally by the server as the callback for the connection.
+    fn request_handler(request: &[u8]) -> Result<Message, ServerError> {
         std::str::from_utf8(request)
             .map_or_else(
                 |_| {
@@ -68,6 +96,7 @@ impl<T: Connection> Server<T> {
             )
     }
 
+    /// Handles GET request and returns corresponding response
     fn handle_get_request(request: &HttpRequest) -> Result<Message, ServerError> {
         let mime = find_mimetype(&request.line.uri[1..]);
 
@@ -87,10 +116,12 @@ impl<T: Connection> Server<T> {
         )
     }
 
+    /// Generate a Not Implemented response
     fn build_not_implemented_response() -> Message {
         format!("{}\r\n", Self::build_http_response(501).unwrap()).into_bytes()
     }
 
+    /// Generate a Not Found response. Use user-defined 404.html page if found, else returns default one.
     fn build_not_found_response() -> Message {
         load_content_from_uri("404.html").map_or_else(
             |_| {
@@ -112,6 +143,7 @@ impl<T: Connection> Server<T> {
         )
     }
 
+    /// Build HTTP response header
     fn build_http_response(status_code: u16) -> Result<String, ServerError> {
         StatusCode::from_u16(status_code).map_or_else(
             |_| Err(ServerError::new("Unknown status code")),

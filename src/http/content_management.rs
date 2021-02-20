@@ -4,6 +4,8 @@ use std::path::Path;
 
 pub type Message = Vec<u8>;
 
+/// Load content as a vector of bytes from the provided URI. Could be images, HTML file, etc.
+/// Returns std::io::Error if loading failed
 pub fn load_content_from_uri(uri: &str) -> Result<Message, std::io::Error> {
     let path = Path::new(uri);
     fs::read(path)
