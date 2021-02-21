@@ -1,4 +1,4 @@
-use crate::http::content_management::{
+use crate::http::content::{
     build_content_type, find_mimetype, load_content_from_uri, Message,
 };
 use crate::http::request::{HttpMethod, HttpRequest};
